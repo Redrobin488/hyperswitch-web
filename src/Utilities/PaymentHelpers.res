@@ -506,6 +506,46 @@ let rec intentCall = (
               | (Applepay, false)
               | (Paypal, false) =>
                 if !isPaymentSession {
+                  Console.log("Paypal END")
+
+                  //asdfghjkl
+                  Utils.makeOnCompleteDoThisPromise()
+                  ->then(
+                    result => {
+                      Console.log("kill me")
+                      let result = result->JSON.Decode.bool->Option.getOr(false)
+                      Console.log(result)
+                      if result {
+                        Console.log("Continue")
+                        closePaymentLoaderIfAny()
+                        postSubmitResponse(~jsonData=data, ~url=url.href)
+                        // resolve("")
+                        ()
+                      } else {
+                        // resolve("")
+                        ()
+                      }
+                      Promise.resolve("")
+                    },
+                  )
+                  ->ignore
+                  // Utils.handleOnCompleteDoThisPostMessage()
+                  // EventListenerManager.addSmartEventListener(
+                  //   "message",
+                  //   (ev: Types.event) => {
+                  //     let json = try {
+                  //       ev.data->anyTypeToJson
+                  //     } catch {
+                  //     | _ => JSON.Encode.null
+                  //     }
+
+                  //     let dict = json->getDictFromJson
+                  //     if dict->Dict.get("postMerchantCallbackxxx")->Option.isSome {
+                  //       Console.log2("xxxxxxxxxxxxxxxxxxxxxxxxxxxx---------->", dict)
+                  //     }
+                  //   },
+                  //   "postMerchantCallbackxxx",
+                  // )
                   closePaymentLoaderIfAny()
                   postSubmitResponse(~jsonData=data, ~url=url.href)
                 } else if confirmParam.redirect === Some("always") {
@@ -513,10 +553,34 @@ let rec intentCall = (
                 } else {
                   resolve(data)
                 }
-              | _ => handleOpenUrl(url.href)
+              | _ =>
+                Utils.makeOnCompleteDoThisPromise()
+                ->then(
+                  result => {
+                    Console.log("kill me")
+                    let result = result->JSON.Decode.bool->Option.getOr(false)
+                    Console.log(result)
+                    if result {
+                      Console.log("Continue")
+                      closePaymentLoaderIfAny()
+                      postSubmitResponse(~jsonData=data, ~url=url.href)
+                      Console.log2("Here is the final", result)
+
+                      handleOpenUrl(url.href)
+                      // resolve("")
+                      ()
+                    } else {
+                      // resolve("")
+                      ()
+                    }
+                    Promise.resolve("")
+                  },
+                )
+                ->ignore
               }
             }
 
+            //idhar
             if intent.status == "requires_customer_action" {
               if intent.nextAction.type_ == "redirect_to_url" {
                 handleLogging(

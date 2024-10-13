@@ -28,6 +28,10 @@ let handleOnFocusPostMessage = (~targetOrigin="*") => {
   messageParentWindow([("focus", true->JSON.Encode.bool)], ~targetOrigin)
 }
 
+let handleOnCompleteDoThisPostMessage = (~targetOrigin="*") => {
+  messageParentWindow([("completeDoThis", true->JSON.Encode.bool)], ~targetOrigin)
+}
+
 let handleOnBlurPostMessage = (~targetOrigin="*") => {
   messageParentWindow([("blur", true->JSON.Encode.bool)], ~targetOrigin)
 }
@@ -1135,12 +1139,65 @@ let rec flatten = (obj, addIndicatorForObject) => {
   newDict
 }
 
+let eventHandlerAsyncFunc = (
+  condition: Types.event => bool,
+  eventHandler: 'a => 'a, //: option<option<OrcaPaymentPage.Types.eventData>> => Promise.t<unit>,
+  evType: Types.eventType,
+  activity,
+) => {
+  Console.log("Here------eventHandlerAsyncFunc")
+
+  let changeHandler = ev => {
+    if ev->condition {
+      switch evType {
+      | CompleteDoThis =>
+        // fire merchant async callback and upon resolution send a message to iFrame
+        // Console.log("Test")
+        // switch eventHandler {
+        // | Some(eH) => {
+        //     // Console.log2("HERE---------->", ev)
+        //     Console.log("Some Promise is Here Going To Execute It")
+        //     eH(Some(ev.data))
+        //     ->Promise.then(res => {
+        //       //Send a Message here to conitnue flow
+        //       Console.log("Promise is RESOLVED")
+        //       Promise.resolve()
+        //     })
+        //     ->Promise.catch(err => {
+        //       //Send a message here to not conitnue flow
+        //       Console.log("Promise is REJECTED")
+        //       Promise.resolve()
+        //     })
+        //     ->ignore
+        //   }
+        // | None => ()
+        // }
+        eventHandler(Some(ev.data))
+        ->Promise.then(res => {
+          //Send a Message here to conitnue flow
+          Console.log("Promise is RESOLVED")
+          Promise.resolve()
+        })
+        ->Promise.catch(err => {
+          //Send a message here to not conitnue flow
+          Console.log("Promise is REJECTED")
+          Promise.resolve()
+        })
+        ->ignore
+      | _ => Console.log("Nothing")
+      }
+    }
+  }
+  EventListenerManager.addSmartEventListener("message", changeHandler, activity)
+}
 let eventHandlerFunc = (
   condition: Types.event => bool,
   eventHandler,
   evType: Types.eventType,
   activity,
 ) => {
+  Console.log("Here---------eventHandlerFunc")
+
   let changeHandler = ev => {
     if ev->condition {
       switch evType {
@@ -1155,6 +1212,21 @@ let eventHandlerFunc = (
         | Some(eH) => eH(Some(ev.data))
         | None => ()
         }
+      | CompleteDoThis => {
+          Console.log("heere")
+          switch eventHandler {
+          | Some(eH) =>
+            Console.log("Some EventHandler Here Going To Execute It")
+            eH(Some(ev.data))
+          | None => ()
+          }
+
+          // const msg = {
+          // postMerchantCallbackxxx: true,
+          //};
+          // postMessage(msg, "*");
+        }
+
       | _ => ()
       }
     }
@@ -1228,6 +1300,31 @@ let makeOneClickHandlerPromise = sdkHandleOneClickConfirmPayment => {
       addSmartEventListener("message", handleMessage, "onOneClickHandlerPaymentConfirm")
       handleOnConfirmPostMessage(~targetOrigin="*", ~isOneClick=true)
     }
+  })
+}
+
+let makeOnCompleteDoThisPromise = () => {
+  open EventListenerManager
+  Promise.make((resolve, _) => {
+    handleOnCompleteDoThisPostMessage()
+    let handleMessage = (ev: Types.event) => {
+      Console.log("hill m,e")
+      let json = try {
+        ev.data->anyTypeToJson
+      } catch {
+      | _ => JSON.Encode.null
+      }
+
+      let dict = json->getDictFromJson
+      if dict->Dict.get("postMerchantCallbackxxx")->Option.isSome {
+        Console.log2(
+          "xxxxxxxxxxxxxxxxxxxxxxxxxxxx---------->",
+          dict->Dict.get("postMerchantCallbackxxx"),
+        )
+        resolve(dict->Dict.get("saksham")->Option.getOr(true->JSON.Encode.bool))
+      }
+    }
+    addSmartEventListener("message", handleMessage, "postMerchantCallbackxxx")
   })
 }
 

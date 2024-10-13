@@ -34,19 +34,45 @@ let make = (
 
     let on = (eventType, eventHandler) => {
       switch eventType->eventTypeMapper {
-      | Escape =>
-        addSmartEventListener(
-          "keypress",
-          (ev: Types.event) => {
-            if ev.key === "Escape" {
-              switch eventHandler {
-              | Some(eH) => eH(Some(ev.data))
-              | None => ()
+      | Escape => {
+          Console.log("Coming Inside the Escape")
+          addSmartEventListener(
+            "keypress",
+            (ev: Types.event) => {
+              if ev.key === "Escape" {
+                switch eventHandler {
+                | Some(eH) => eH(Some(ev.data))
+                | None => ()
+                }
               }
-            }
-          },
-          "onEscape",
+            },
+            "onEscape",
+          )
+        }
+      | CompleteDoThis =>
+        Console.log("Coming Inside the CompleteDoThis")
+
+        eventHandlerFunc(
+          ev => ev.data.completeDoThis,
+          eventHandler,
+          CompleteDoThis,
+          "onCompleteDoThis",
         )
+
+      // eventHandlerAsyncFunc(
+      //   ev => ev.data.completeDoThis,
+      //   eventHandler,
+      //   // ->Promise.then(res => {
+      //   //   Console.log("Promise is RESOLVED")
+      //   //   Promise.resolve()
+      //   // })
+      //   // ->Promise.catch(err => {
+      //   //   Console.log("Promise is REJECTED")
+      //   //   Promise.resolve()
+      //   // }),
+      //   CompleteDoThis,
+      //   "onCompleteDoThis",
+      // )
       | Change =>
         eventHandlerFunc(
           ev => ev.data.elementType === componentType,
@@ -57,7 +83,10 @@ let make = (
       | Click => eventHandlerFunc(ev => ev.data.clickTriggered, eventHandler, Click, "onClick")
       | Ready => eventHandlerFunc(ev => ev.data.ready, eventHandler, Ready, "onReady")
       | Focus => eventHandlerFunc(ev => ev.data.focus, eventHandler, Focus, "onFocus")
-      | Blur => eventHandlerFunc(ev => ev.data.blur, eventHandler, Blur, "onBlur")
+      | Blur => {
+          Console.log("Coming Inside the Blur")
+          eventHandlerFunc(ev => ev.data.blur, eventHandler, Blur, "onBlur")
+        }
       | ConfirmPayment =>
         eventHandlerFunc(
           ev => ev.data.confirmTriggered,

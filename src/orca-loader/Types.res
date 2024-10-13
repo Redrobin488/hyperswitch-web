@@ -3,6 +3,7 @@ type eventData = {
   focus: bool,
   blur: bool,
   ready: bool,
+  completeDoThis: bool,
   clickTriggered: bool,
   elementType: string,
   classChange: bool,
@@ -184,7 +185,16 @@ let defaultHyperInstance = {
 }
 
 type eventType =
-  Escape | Change | Click | Ready | Focus | Blur | ConfirmPayment | OneClickConfirmPayment | None
+  | Escape
+  | Change
+  | Click
+  | Ready
+  | Focus
+  | Blur
+  | CompleteDoThis
+  | ConfirmPayment
+  | OneClickConfirmPayment
+  | None
 
 let eventTypeMapper = event => {
   switch event {
@@ -194,6 +204,7 @@ let eventTypeMapper = event => {
   | "ready" => Ready
   | "focus" => Focus
   | "blur" => Blur
+  | "completeDoThis" => CompleteDoThis
   | "confirmTriggered" => ConfirmPayment
   | "oneClickConfirmTriggered" => OneClickConfirmPayment
   | _ => None
