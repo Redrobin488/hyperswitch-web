@@ -23,6 +23,7 @@ module This = {
 
 type paymentElement = {
   on: (string, option<option<eventData> => unit>) => unit,
+  onMerchantEvents: (string, option<option<eventData> => Promise.t<unit>>) => unit,
   collapse: unit => unit,
   blur: unit => unit,
   update: JSON.t => unit,
@@ -109,6 +110,7 @@ let fetchUpdates = () => {
 }
 let defaultPaymentElement = {
   on: (_str, _func) => (),
+  onMerchantEvents: (_str, _func) => (),
   collapse: () => (),
   blur: () => (),
   update: _x => (),

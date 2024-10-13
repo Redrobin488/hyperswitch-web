@@ -32,6 +32,22 @@ let make = (
         true,
       )
 
+    let onMerchantEvents = (
+      eventType,
+      eventHandler: option<option<OrcaPaymentPage.Types.eventData> => Promise.t<unit>>,
+    ) => {
+      switch eventType->eventTypeMapper {
+      | CompleteDoThis =>
+        eventHandlerAsync(
+          ev => ev.data.completeDoThis,
+          eventHandler,
+          CompleteDoThis,
+          "onCompleteDoThis",
+        )
+      | _ => ()
+      }
+    }
+
     let on = (eventType, eventHandler) => {
       switch eventType->eventTypeMapper {
       | Escape => {
@@ -49,15 +65,6 @@ let make = (
             "onEscape",
           )
         }
-      | CompleteDoThis =>
-        Console.log("Coming Inside the CompleteDoThis")
-
-        eventHandlerFunc(
-          ev => ev.data.completeDoThis,
-          eventHandler,
-          CompleteDoThis,
-          "onCompleteDoThis",
-        )
 
       // eventHandlerAsyncFunc(
       //   ev => ev.data.completeDoThis,
@@ -380,8 +387,9 @@ let make = (
       }
     }
 
-    {
+    let x = {
       on,
+      onMerchantEvents,
       collapse,
       blur,
       focus,
@@ -391,6 +399,7 @@ let make = (
       update,
       mount,
     }
+    x
   } catch {
   | e => {
       Sentry.captureException(e)
