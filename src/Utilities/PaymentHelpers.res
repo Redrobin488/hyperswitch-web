@@ -509,26 +509,26 @@ let rec intentCall = (
                   Console.log("Paypal END")
 
                   //asdfghjkl
-                  Utils.makeOnCompleteDoThisPromise()
-                  ->then(
-                    result => {
-                      Console.log("kill me")
-                      let result = result->JSON.Decode.bool->Option.getOr(false)
-                      Console.log(result)
-                      if result {
-                        Console.log("Continue")
-                        closePaymentLoaderIfAny()
-                        postSubmitResponse(~jsonData=data, ~url=url.href)
-                        // resolve("")
-                        ()
-                      } else {
-                        // resolve("")
-                        ()
-                      }
-                      Promise.resolve("")
-                    },
-                  )
-                  ->ignore
+                  // Utils.makeOnCompleteDoThisPromise()
+                  // ->then(
+                  //   result => {
+                  //     Console.log("kill me")
+                  //     let result = result->JSON.Decode.bool->Option.getOr(false)
+                  //     Console.log(result)
+                  //     if result {
+                  //       Console.log("Continue")
+                  //       closePaymentLoaderIfAny()
+                  //       postSubmitResponse(~jsonData=data, ~url=url.href)
+                  //       // resolve("")
+                  //       ()
+                  //     } else {
+                  //       // resolve("")
+                  //       ()
+                  //     }
+                  //     Promise.resolve("")
+                  //   },
+                  // )
+                  // ->ignore
                   // Utils.handleOnCompleteDoThisPostMessage()
                   // EventListenerManager.addSmartEventListener(
                   //   "message",
@@ -553,30 +553,30 @@ let rec intentCall = (
                 } else {
                   resolve(data)
                 }
-              | _ =>
-                Utils.makeOnCompleteDoThisPromise()
-                ->then(
-                  result => {
-                    Console.log("kill me")
-                    let result = result->JSON.Decode.bool->Option.getOr(false)
-                    Console.log(result)
-                    if result {
-                      Console.log("Continue")
-                      closePaymentLoaderIfAny()
-                      postSubmitResponse(~jsonData=data, ~url=url.href)
-                      Console.log2("Here is the final", result)
+              | _ => ()
+              // Utils.makeOnCompleteDoThisPromise()
+              // ->then(
+              //   result => {
+              //     Console.log("kill me")
+              //     let result = result->JSON.Decode.bool->Option.getOr(false)
+              //     Console.log(result)
+              //     if result {
+              //       Console.log("Continue")
+              //       closePaymentLoaderIfAny()
+              //       postSubmitResponse(~jsonData=data, ~url=url.href)
+              //       Console.log2("Here is the final", result)
 
-                      handleOpenUrl(url.href)
-                      // resolve("")
-                      ()
-                    } else {
-                      // resolve("")
-                      ()
-                    }
-                    Promise.resolve("")
-                  },
-                )
-                ->ignore
+              //       handleOpenUrl(url.href)
+              //       // resolve("")
+              //       ()
+              //     } else {
+              //       // resolve("")
+              //       ()
+              //     }
+              //     Promise.resolve("")
+              //   },
+              // )
+              // ->ignore
               }
             }
 

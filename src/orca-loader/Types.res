@@ -191,6 +191,7 @@ type eventType =
   | Ready
   | Focus
   | Blur
+  | Complete
   | CompleteDoThis
   | ConfirmPayment
   | OneClickConfirmPayment
