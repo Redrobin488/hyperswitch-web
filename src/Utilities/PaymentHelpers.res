@@ -1995,6 +1995,7 @@ let calculateTax = (
   ~shippingAddress,
   ~logger,
   ~customPodUri,
+  ~sessionId,
 ) => {
   open Promise
   let endpoint = ApiEndpoint.getApiEndPoint()
@@ -2005,6 +2006,8 @@ let calculateTax = (
     ("shipping", shippingAddress),
     ("payment_method_type", paymentMethodType),
   ]
+  sessionId->Option.mapOr((), id => body->Array.push(("session_id", id))->ignore)
+
   logApi(
     ~optLogger=Some(logger),
     ~url=uri,

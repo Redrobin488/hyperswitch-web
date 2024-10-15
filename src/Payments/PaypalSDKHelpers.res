@@ -1,6 +1,7 @@
 open PaypalSDKTypes
 open Promise
 open Utils
+open TaxCalculation
 
 let loadPaypalSDK = (
   ~loggerState: OrcaLogger.loggerMake,
@@ -23,6 +24,7 @@ let loadPaypalSDK = (
   ) => unit,
   ~setIsCompleted,
   ~sessions: OrcaPaymentPage.PaymentType.loadType,
+  ~clientSecret,
 ) => {
   loggerState.setLogInfo(
     ~value="Paypal SDK Button Clicked",
@@ -109,6 +111,34 @@ let loadPaypalSDK = (
         }
       })
     },
+    onShippingAddressChange: data => {
+      // if true {
+      Js.log2("<<>>11", data)
+      let newShippingAddressObj =
+        data
+        ->getDictFromJson
+        ->getDictFromObj("shippingAddress")
+        ->shippingAddressItemToObjMapper
+      let newShippingAddress =
+        [
+          ("state", newShippingAddressObj.state->Option.getOr("")->JSON.Encode.string),
+          ("country", newShippingAddressObj.countryCode->Option.getOr("")->JSON.Encode.string),
+          ("zip", newShippingAddressObj.postalCode->Option.getOr("")->JSON.Encode.string),
+        ]->getJsonFromArrayOfJson
+
+      let paymentMethodType = "paypal"->JSON.Encode.string
+
+      calculateTax(
+        ~shippingAddress=[("address", newShippingAddress)]->getJsonFromArrayOfJson,
+        ~logger=loggerState,
+        ~publishableKey,
+        ~clientSecret=clientSecret->Option.getOr(""),
+        ~paymentMethodType,
+        ~sessionId=data->getDictFromJson->Dict.get("orderID"),
+      )
+
+      // }
+    },
     onApprove: (_data, actions) => {
       if !options.readOnly {
         actions.order.get()
@@ -137,8 +167,7 @@ let loadPaypalSDK = (
 
           let (connectors, _) =
             paymentMethodListValue->PaymentUtils.getConnectors(Wallets(Paypal(SDK)))
-
-          let orderId = val->Utils.getDictFromJson->Utils.getString("id", "")
+          let orderId = val->getDictFromJson->Utils.getString("id", "")
           let body = PaymentBody.paypalSdkBody(~token=orderId, ~connectors)
           let modifiedPaymentBody = PaymentUtils.appendedCustomerAcceptance(
             ~isGuestCustomer,

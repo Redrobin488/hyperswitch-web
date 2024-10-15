@@ -1,13 +1,15 @@
 open PaypalSDKTypes
-open Utils
 
 let sessions = Recoil.atom("sessions", PaymentType.Loading)
 
 @react.component
 let make = (~sessionObj: SessionsType.token, ~paymentType: CardThemeType.mode) => {
-  let {iframeId, publishableKey, sdkHandleOneClickConfirmPayment} = Recoil.useRecoilValueFromAtom(
-    RecoilAtoms.keys,
-  )
+  let {
+    iframeId,
+    publishableKey,
+    sdkHandleOneClickConfirmPayment,
+    clientSecret,
+  } = Recoil.useRecoilValueFromAtom(RecoilAtoms.keys)
   let (loggerState, _setLoggerState) = Recoil.useRecoilState(RecoilAtoms.loggerAtom)
   let areOneClickWalletsRendered = Recoil.useSetRecoilState(RecoilAtoms.areOneClickWalletsRendered)
   let paymentMethodListValue = Recoil.useRecoilValueFromAtom(PaymentUtils.paymentMethodListValue)
@@ -97,6 +99,7 @@ let make = (~sessionObj: SessionsType.token, ~paymentType: CardThemeType.mode) =
         ~areOneClickWalletsRendered,
         ~setIsCompleted,
         ~sessions,
+        ~clientSecret,
       )
     })
     Window.body->Window.appendChild(paypalScript)
