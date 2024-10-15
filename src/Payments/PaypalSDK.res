@@ -1,4 +1,7 @@
 open PaypalSDKTypes
+open Utils
+
+let sessions = Recoil.atom("sessions", PaymentType.Loading)
 
 @react.component
 let make = (~sessionObj: SessionsType.token, ~paymentType: CardThemeType.mode) => {
@@ -12,9 +15,11 @@ let make = (~sessionObj: SessionsType.token, ~paymentType: CardThemeType.mode) =
 
   let token = sessionObj.token
   let orderDetails = sessionObj.orderDetails->getOrderDetails(paymentType)
-  let intent = PaymentHelpers.usePaymentIntent(Some(loggerState), Paypal)
-  let isManualRetryEnabled = Recoil.useRecoilValueFromAtom(RecoilAtoms.isManualRetryEnabled)
+  let intent = PaymentHelpers.usePostSessionTokens(Some(loggerState), Paypal, Wallet)
+  let confirm = PaymentHelpers.usePaymentIntent(Some(loggerState), Paypal)
+  let sessions = Recoil.useRecoilValueFromAtom(sessions)
   let completeAuthorize = PaymentHelpers.useCompleteAuthorize(Some(loggerState), Paypal)
+  let isManualRetryEnabled = Recoil.useRecoilValueFromAtom(RecoilAtoms.isManualRetryEnabled)
   let checkoutScript =
     Window.document(Window.window)->Window.getElementById("braintree-checkout")->Nullable.toOption
   let clientScript =
@@ -80,16 +85,18 @@ let make = (~sessionObj: SessionsType.token, ~paymentType: CardThemeType.mode) =
         ~iframeId,
         ~paymentMethodListValue,
         ~isGuestCustomer,
-        ~intent,
+        ~postSessionTokens=intent,
         ~isManualRetryEnabled,
         ~options,
         ~publishableKey,
         ~paymentMethodTypes,
         ~stateJson,
+        ~confirm,
         ~completeAuthorize,
         ~handleCloseLoader,
         ~areOneClickWalletsRendered,
         ~setIsCompleted,
+        ~sessions,
       )
     })
     Window.body->Window.appendChild(paypalScript)
