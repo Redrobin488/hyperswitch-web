@@ -135,6 +135,7 @@ async function createPaymentIntent(request) {
       console.error("Error - ", paymentIntent.error);
       throw new Error(paymentIntent?.error?.message ?? "Something went wrong.");
     }
+    console.log("<<>>paymentIntent", paymentIntent);
     return paymentIntent;
   } else {
     return await hyperswitch?.paymentIntents?.create(request);

@@ -1,6 +1,7 @@
 open Utils
 open Identity
 
+
 @val @scope(("window", "parent", "location")) external href: string = "href"
 
 type searchParams = {set: (string, string) => unit}
@@ -1226,7 +1227,7 @@ let fetchSessions = (
   open Promise
   let headers = [
     ("Content-Type", "application/json"),
-    ("api-key", "dev_bGAJOts29LpsidLNfBP5ei2H3rVY6ZOA8WfLnOK0wzlNihToUZZL6hX1Aezwcvdo"),
+    ("api-key", "dev_pNOP4HDwufsuUwoVnhPfKsCZVttz7HOUWAZpQoIp167aOvxiqDGpEA9IrUtpAzN0"),
     ("X-Merchant-Domain", merchantHostname),
   ]
   let paymentIntentID = clientSecret->getPaymentId
@@ -1514,7 +1515,7 @@ let fetchPaymentMethodList = (
   open Promise
   let headers = [
     ("Content-Type", "application/json"),
-    ("api-key", "dev_bGAJOts29LpsidLNfBP5ei2H3rVY6ZOA8WfLnOK0wzlNihToUZZL6hX1Aezwcvdo"),
+    ("api-key", "dev_pNOP4HDwufsuUwoVnhPfKsCZVttz7HOUWAZpQoIp167aOvxiqDGpEA9IrUtpAzN0"),
   ]
   let uri = `${endpoint}/account/payment_methods_v2`
   logApi(
