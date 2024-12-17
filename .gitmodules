@@ -1,0 +1,4 @@
+[submodule "hyperswitch-sdk-utils"]
+	path = hyperswitch-sdk-utils
+	url = git@github.com:juspay/hyperswitch-sdk-utils.git
+	branch = main
