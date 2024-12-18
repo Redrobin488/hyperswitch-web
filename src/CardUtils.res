@@ -1,3 +1,6 @@
+open ValidationUtils
+open CardExpiryValidation
+
 type cardIssuer =
   | VISA
   | MASTERCARD
@@ -72,7 +75,6 @@ type options = {timeZone: string}
 type dateTimeFormat = {resolvedOptions: unit => options}
 @val @scope("Intl") external dateTimeFormat: unit => dateTimeFormat = "DateTimeFormat"
 
-let toInt = val => val->Int.fromString->Option.getOr(0)
 let toString = val => val->Int.toString
 
 let getQueryParamsDictforKey = (searchParams, keyName) => {
@@ -131,16 +133,6 @@ let getCardStringFromType = val => {
   }
 }
 
-let getobjFromCardPattern = cardBrand => {
-  let patternsDict = CardPattern.cardPatterns
-  patternsDict
-  ->Array.filter(item => {
-    cardBrand === item.issuer
-  })
-  ->Array.get(0)
-  ->Option.getOr(CardPattern.defaultCardPattern)
-}
-
 let clearSpaces = value => {
   value->String.replaceRegExp(%re("/\D+/g"), "")
 }
@@ -157,19 +149,6 @@ let formatCVCNumber = (val, cardType) => {
   let clearValue = val->clearSpaces
   let obj = getobjFromCardPattern(cardType)
   clearValue->slice(0, obj.maxCVCLength)
-}
-
-let getCurrentMonthAndYear = (dateTimeIsoString: string) => {
-  let tempTimeDateString = dateTimeIsoString->String.replace("Z", "")
-  let tempTimeDate = tempTimeDateString->String.split("T")
-
-  let date = tempTimeDate[0]->Option.getOr("")
-  let dateComponents = date->String.split("-")
-
-  let currentMonth = dateComponents->Array.get(1)->Option.getOr("")
-  let currentYear = dateComponents->Array.get(0)->Option.getOr("")
-
-  (currentMonth->toInt, currentYear->toInt)
 }
 
 let formatCardNumber = (val, cardType) => {
@@ -195,20 +174,7 @@ let formatCardNumber = (val, cardType) => {
 
   formatedCard->String.trim
 }
-let splitExpiryDates = val => {
-  let split = val->String.split("/")
-  let value = split->Array.map(item => item->String.trim)
-  let month = value->Array.get(0)->Option.getOr("")
-  let year = value->Array.get(1)->Option.getOr("")
-  (month, year)
-}
-let getExpiryDates = val => {
-  let date = Date.make()->Date.toISOString
-  let (month, year) = splitExpiryDates(val)
-  let (_, currentYear) = getCurrentMonthAndYear(date)
-  let prefix = currentYear->Int.toString->String.slice(~start=0, ~end=2)
-  (month, `${prefix}${year}`)
-}
+
 let formatExpiryToTwoDigit = expiry => {
   if expiry->String.length == 2 {
     expiry
@@ -372,24 +338,6 @@ let getCardBrandIcon = (cardType, paymentType) => {
   }
 }
 
-let getExpiryValidity = cardExpiry => {
-  let date = Date.make()->Date.toISOString
-  let (month, year) = getExpiryDates(cardExpiry)
-  let (currentMonth, currentYear) = getCurrentMonthAndYear(date)
-  let valid = if currentYear == year->toInt && month->toInt >= currentMonth && month->toInt <= 12 {
-    true
-  } else if (
-    year->toInt > currentYear &&
-    year->toInt < Date.getFullYear(Js.Date.fromFloat(Date.now())) + 100 &&
-    month->toInt >= 1 &&
-    month->toInt <= 12
-  ) {
-    true
-  } else {
-    false
-  }
-  valid
-}
 let isExipryValid = val => {
   val->String.length > 0 && getExpiryValidity(val) && isExpiryComplete(val)
 }
@@ -420,14 +368,6 @@ let getMaxLength = val => {
   }
 }
 
-let cvcNumberInRange = (val, cardBrand) => {
-  let clearValue = val->clearSpaces
-  let obj = getobjFromCardPattern(cardBrand)
-  let cvcLengthInRange = obj.cvcLength->Array.map(item => {
-    clearValue->String.length == item
-  })
-  cvcLengthInRange
-}
 let generateFontsLink = (fonts: array<CardThemeType.fonts>) => {
   if fonts->Array.length > 0 {
     fonts
@@ -536,13 +476,6 @@ let getCardElementValue = (iframeId, key) => {
     ""
   }
   thirdIframeVal === "" ? secondIframeVal === "" ? firstIframeVal : secondIframeVal : thirdIframeVal
-}
-
-let checkCardCVC = (cvcNumber, cardBrand) => {
-  cvcNumber->String.length > 0 && cvcNumberInRange(cvcNumber, cardBrand)->Array.includes(true)
-}
-let checkCardExpiry = expiry => {
-  expiry->String.length > 0 && getExpiryValidity(expiry)
 }
 
 let getBoolOptionVal = boolOptionVal => {

@@ -1,4 +1,5 @@
 open RecoilAtoms
+open CardExpiryValidation
 
 let dynamicFieldsEnabledPaymentMethods = [
   "crypto_currency",
@@ -561,10 +562,10 @@ let useRequiredFieldsBody = (
     | BillingName => billingName.value
     | CardNumber => cardNumber->CardUtils.clearSpaces
     | CardExpiryMonth =>
-      let (month, _) = CardUtils.getExpiryDates(cardExpiry)
+      let (month, _) = getExpiryDates(cardExpiry)
       month
     | CardExpiryYear =>
-      let (_, year) = CardUtils.getExpiryDates(cardExpiry)
+      let (_, year) = getExpiryDates(cardExpiry)
       year
     | CryptoCurrencyNetworks => cryptoCurrencyNetworks
     | DateOfBirth =>

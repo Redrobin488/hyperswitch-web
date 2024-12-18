@@ -653,7 +653,7 @@ let calculateValidity = (key, value, ~default=None) => {
       Some(false)
     }
   | PayoutMethodData(CardExpDate(_)) =>
-    if value->String.length > 0 && getExpiryValidity(value) {
+    if value->String.length > 0 && CardExpiryValidation.getExpiryValidity(value) {
       Some(true)
     } else if value->String.length == 0 {
       default

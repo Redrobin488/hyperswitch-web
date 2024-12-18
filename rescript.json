@@ -6,10 +6,14 @@
     "mode": "classic"
   },
   "bsc-flags": ["-bs-super-errors", "-open RescriptCore"],
-  "sources": {
+  "sources": [{
     "dir": "src",
     "subdirs": true
-  },
+  }, 
+  {
+    "dir": "hyperswitch-sdk-utils",
+    "subdirs": true
+  }],
   "suffix": ".bs.js",
   "namespace": true,
   "ppx-flags": [],
