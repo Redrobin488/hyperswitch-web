@@ -82,7 +82,9 @@ let make = (
 
     let cardNetworkNames =
       cardNetworks->Array.map(ele =>
-        ele->Array.map(val => val.card_network->CardUtils.getCardStringFromType->String.toLowerCase)
+        ele->Array.map(
+          val => val.card_network->ValidationUtils.getCardStringFromType->String.toLowerCase,
+        )
       )
 
     cardNetworkNames
@@ -350,7 +352,9 @@ let make = (
       </div>
     </RenderIf>
     <RenderIf condition={showFields || isBancontact}>
-      <Surcharge paymentMethod paymentMethodType cardBrand={cardBrand->CardUtils.getCardType} />
+      <Surcharge
+        paymentMethod paymentMethodType cardBrand={cardBrand->ValidationUtils.getCardType}
+      />
     </RenderIf>
     <RenderIf condition={displaySavedPaymentMethodsCheckbox && !isBancontact}>
       {switch (

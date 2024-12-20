@@ -750,13 +750,13 @@ type paymentExperience = {
 }
 
 type cardNetworks = {
-  card_network: CardUtils.cardIssuer,
+  card_network: ValidationUtils.cardIssuer,
   eligible_connectors: array<string>,
   surcharge_details: option<surchargeDetails>,
 }
 
 let defaultCardNetworks = {
-  card_network: CardUtils.NOTFOUND,
+  card_network: ValidationUtils.NOTFOUND,
   eligible_connectors: [],
   surcharge_details: None,
 }
@@ -885,7 +885,7 @@ let getCardNetworks = (dict, str) => {
   ->Belt.Array.keepMap(JSON.Decode.object)
   ->Array.map(json => {
     {
-      card_network: getString(json, "card_network", "")->CardUtils.getCardType,
+      card_network: getString(json, "card_network", "")->ValidationUtils.getCardType,
       eligible_connectors: getStrArray(json, "eligible_connectors"),
       surcharge_details: json->getSurchargeDetails,
     }

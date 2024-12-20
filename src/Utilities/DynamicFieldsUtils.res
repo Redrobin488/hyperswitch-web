@@ -217,7 +217,6 @@ let useRequiredFieldsEmptyAndValid = (
       acc,
       paymentMethodFields: PaymentMethodsRecord.paymentMethodsFields,
     ) => {
-      open CardUtils
       acc ||
       switch paymentMethodFields {
       | Email => email.value === ""
@@ -560,7 +559,7 @@ let useRequiredFieldsBody = (
         countryCode.isoAlpha2
       }
     | BillingName => billingName.value
-    | CardNumber => cardNumber->CardUtils.clearSpaces
+    | CardNumber => cardNumber->ValidationUtils.clearSpaces
     | CardExpiryMonth =>
       let (month, _) = getExpiryDates(cardExpiry)
       month

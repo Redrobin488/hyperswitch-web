@@ -544,7 +544,9 @@ let getSupportedCardBrands = (paymentMethodListValue: PaymentMethodsRecord.payme
     let cardNetworks = cardPaymentMethod.payment_method_types->Array.map(ele => ele.card_networks)
     let cardNetworkNames =
       cardNetworks->Array.map(ele =>
-        ele->Array.map(val => val.card_network->CardUtils.getCardStringFromType->String.toLowerCase)
+        ele->Array.map(val =>
+          val.card_network->ValidationUtils.getCardStringFromType->String.toLowerCase
+        )
       )
     Some(
       cardNetworkNames
@@ -556,8 +558,8 @@ let getSupportedCardBrands = (paymentMethodListValue: PaymentMethodsRecord.payme
 }
 
 let checkIsCardSupported = (cardNumber, supportedCardBrands) => {
-  let cardBrand = cardNumber->CardUtils.getCardBrand
-  let clearValue = cardNumber->CardUtils.clearSpaces
+  let cardBrand = cardNumber->ValidationUtils.getCardBrand
+  let clearValue = cardNumber->ValidationUtils.clearSpaces
   if cardBrand == "" && (GlobalVars.isInteg || GlobalVars.isSandbox) {
     Some(CardUtils.cardValid(clearValue, cardBrand))
   } else if CardUtils.cardValid(clearValue, cardBrand) {

@@ -5,6 +5,7 @@ open LoggerUtils
 open RecoilAtoms
 open CardCvcValidation
 open CardExpiryValidation
+open ValidationUtils
 
 let setUserError = message => {
   Utils.postFailedSubmitResponse(~errortype="validation_error", ~message)
@@ -360,7 +361,7 @@ let make = (~paymentMode, ~integrateError, ~logger) => {
   }, (isExpiryValid, isExpiryComplete(cardExpiry)))
 
   React.useEffect(() => {
-    setCardBrand(_ => cardNumber->CardUtils.getCardBrand)
+    setCardBrand(_ => cardNumber->ValidationUtils.getCardBrand)
     None
   }, [cardNumber])
 

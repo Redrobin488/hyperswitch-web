@@ -9,8 +9,8 @@ let make = () => {
   let blikCodeRef = React.useRef(Nullable.null)
   let formatBSB = bsb => {
     let formatted = bsb->String.replaceRegExp(%re("/\D+/g"), "")
-    let firstPart = formatted->CardUtils.slice(0, 3)
-    let secondPart = formatted->CardUtils.slice(3, 6)
+    let firstPart = formatted->ValidationUtils.slice(0, 3)
+    let secondPart = formatted->ValidationUtils.slice(3, 6)
 
     if formatted->String.length <= 3 {
       firstPart

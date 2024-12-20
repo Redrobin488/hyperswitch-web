@@ -2,7 +2,7 @@
 let make = (
   ~paymentMethod,
   ~paymentMethodType,
-  ~cardBrand=CardUtils.NOTFOUND,
+  ~cardBrand=ValidationUtils.NOTFOUND,
   ~isForWallets=false,
 ) => {
   let paymentMethodListValue = Recoil.useRecoilValueFromAtom(PaymentUtils.paymentMethodListValue)

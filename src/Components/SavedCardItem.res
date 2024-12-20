@@ -219,7 +219,7 @@ let make = (
                 <Surcharge
                   paymentMethod=paymentItem.paymentMethod
                   paymentMethodType
-                  cardBrand={cardBrand->CardUtils.getCardType}
+                  cardBrand={cardBrand->ValidationUtils.getCardType}
                 />
               </RenderIf>
             </div>

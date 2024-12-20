@@ -1,21 +1,6 @@
 open ValidationUtils
 open CardExpiryValidation
-
-type cardIssuer =
-  | VISA
-  | MASTERCARD
-  | AMEX
-  | MAESTRO
-  | DINERSCLUB
-  | DISCOVER
-  | BAJAJ
-  | SODEXO
-  | RUPAY
-  | JCB
-  | CARTESBANCAIRES
-  | UNIONPAY
-  | INTERAC
-  | NOTFOUND
+open CardNumberValidation
 
 type cardProps = (
   option<bool>,
@@ -95,85 +80,6 @@ let getQueryParamsDictforKey = (searchParams, keyName) => {
 
   dict->Dict.get(keyName)->Option.getOr("")
 }
-let getCardType = val => {
-  switch val {
-  | "Visa" => VISA
-  | "Mastercard" => MASTERCARD
-  | "AmericanExpress" => AMEX
-  | "Maestro" => MAESTRO
-  | "DinersClub" => DINERSCLUB
-  | "Discover" => DISCOVER
-  | "BAJAJ" => BAJAJ
-  | "SODEXO" => SODEXO
-  | "RuPay" => RUPAY
-  | "JCB" => JCB
-  | "CartesBancaires" => CARTESBANCAIRES
-  | "UnionPay" => UNIONPAY
-  | "Interac" => INTERAC
-  | _ => NOTFOUND
-  }
-}
-
-let getCardStringFromType = val => {
-  switch val {
-  | VISA => "Visa"
-  | MASTERCARD => "Mastercard"
-  | AMEX => "AmericanExpress"
-  | MAESTRO => "Maestro"
-  | DINERSCLUB => "DinersClub"
-  | DISCOVER => "Discover"
-  | BAJAJ => "BAJAJ"
-  | SODEXO => "SODEXO"
-  | RUPAY => "RuPay"
-  | JCB => "JCB"
-  | CARTESBANCAIRES => "CartesBancaires"
-  | UNIONPAY => "UnionPay"
-  | INTERAC => "Interac"
-  | NOTFOUND => "NOTFOUND"
-  }
-}
-
-let clearSpaces = value => {
-  value->String.replaceRegExp(%re("/\D+/g"), "")
-}
-
-let slice = (val, start: int, end: int) => {
-  val->String.slice(~start, ~end)
-}
-
-let getStrFromIndex = (arr: array<string>, index) => {
-  arr->Array.get(index)->Option.getOr("")
-}
-
-let formatCVCNumber = (val, cardType) => {
-  let clearValue = val->clearSpaces
-  let obj = getobjFromCardPattern(cardType)
-  clearValue->slice(0, obj.maxCVCLength)
-}
-
-let formatCardNumber = (val, cardType) => {
-  let clearValue = val->clearSpaces
-  let formatedCard = switch cardType {
-  | AMEX => `${clearValue->slice(0, 4)} ${clearValue->slice(4, 10)} ${clearValue->slice(10, 15)}`
-  | DINERSCLUB
-  | MASTERCARD
-  | DISCOVER
-  | SODEXO
-  | RUPAY
-  | VISA =>
-    `${clearValue->slice(0, 4)} ${clearValue->slice(4, 8)} ${clearValue->slice(
-        8,
-        12,
-      )} ${clearValue->slice(12, 16)} ${clearValue->slice(16, 19)}`
-  | _ =>
-    `${clearValue->slice(0, 4)} ${clearValue->slice(4, 8)} ${clearValue->slice(
-        8,
-        12,
-      )} ${clearValue->slice(12, 19)}`
-  }
-
-  formatedCard->String.trim
-}
 
 let formatExpiryToTwoDigit = expiry => {
   if expiry->String.length == 2 {
@@ -204,67 +110,6 @@ let formatCardExpiryNumber = val => {
     `${formatted->slice(0, 2)} / ${formatted->slice(2, 4)}`
   } else {
     formatted
-  }
-}
-
-let getCardBrand = cardNumber => {
-  try {
-    let card = cardNumber->String.replaceRegExp(%re("/[^\d]/g"), "")
-    let rupayRanges = [
-      (508227, 508227),
-      (508500, 508999),
-      (603741, 603741),
-      (606985, 607384),
-      (607385, 607484),
-      (607485, 607984),
-      (608001, 608100),
-      (608101, 608200),
-      (608201, 608300),
-      (608301, 608350),
-      (608351, 608500),
-      (652150, 652849),
-      (652850, 653049),
-      (653050, 653149),
-      (817290, 817290),
-    ]
-
-    let masterCardRanges = [(222100, 272099), (510000, 559999)]
-
-    let doesFallInRange = (cardRanges, isin) => {
-      let intIsin =
-        isin
-        ->String.replaceRegExp(%re("/[^\d]/g"), "")
-        ->String.substring(~start=0, ~end=6)
-        ->Int.fromString
-        ->Option.getOr(0)
-
-      let range = cardRanges->Array.map(cardRange => {
-        let (min, max) = cardRange
-
-        intIsin >= min && intIsin <= max
-      })
-      range->Array.includes(true)
-    }
-    let patternsDict = CardPattern.cardPatterns
-    if doesFallInRange(rupayRanges, card) {
-      "RuPay"
-    } else if doesFallInRange(masterCardRanges, card) {
-      "Mastercard"
-    } else {
-      patternsDict
-      ->Array.map(item => {
-        if String.match(card, item.pattern)->Option.isSome {
-          item.issuer
-        } else {
-          ""
-        }
-      })
-      ->Array.filter(item => item !== "")
-      ->Array.get(0)
-      ->Option.getOr("")
-    }
-  } catch {
-  | _error => ""
   }
 }
 

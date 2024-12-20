@@ -20,7 +20,7 @@ module CoBadgeCardSchemeDropDown = {
 
 @react.component
 let make = (~cardNumber, ~paymentType, ~cardBrand, ~setCardBrand) => {
-  let cardType = React.useMemo1(_ => cardBrand->CardUtils.getCardType, [cardBrand])
+  let cardType = React.useMemo1(_ => cardBrand->ValidationUtils.getCardType, [cardBrand])
   let animate = cardType == NOTFOUND ? "animate-slideLeft" : "animate-slideRight"
   let cardBrandIcon = React.useMemo1(
     _ => CardUtils.getCardBrandIcon(cardType, paymentType),
@@ -31,7 +31,8 @@ let make = (~cardNumber, ~paymentType, ~cardBrand, ~setCardBrand) => {
   let enabledCardSchemes =
     paymentMethodListValue->PaymentUtils.getSupportedCardBrands->Option.getOr([])
 
-  let matchedCardSchemes = cardNumber->CardUtils.clearSpaces->CardUtils.getAllMatchedCardSchemes
+  let matchedCardSchemes =
+    cardNumber->ValidationUtils.clearSpaces->CardUtils.getAllMatchedCardSchemes
 
   let eligibleCardSchemes = CardUtils.getEligibleCoBadgedCardSchemes(
     ~matchedCardSchemes,
@@ -44,7 +45,8 @@ let make = (~cardNumber, ~paymentType, ~cardBrand, ~setCardBrand) => {
 
   <div className={`${animate} flex items-center ${marginLeft} hellow-rodl`}>
     cardBrandIcon
-    <RenderIf condition={isCardCoBadged && cardNumber->CardUtils.clearSpaces->String.length >= 16}>
+    <RenderIf
+      condition={isCardCoBadged && cardNumber->ValidationUtils.clearSpaces->String.length >= 16}>
       <CoBadgeCardSchemeDropDown eligibleCardSchemes setCardBrand />
     </RenderIf>
   </div>
