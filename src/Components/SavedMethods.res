@@ -5,7 +5,6 @@ let make = (
   ~savedMethods: array<PaymentType.customerMethods>,
   ~loadSavedCards: PaymentType.savedCardsLoadState,
   ~cvcProps,
-  ~paymentType,
   ~sessions,
   ~isClickToPayAuthenticateError,
   ~setIsClickToPayAuthenticateError,
@@ -60,6 +59,12 @@ let make = (
   let applePaySessionObj = SessionsType.itemToObjMapper(dict, ApplePayObject)
   let applePayToken = SessionsType.getPaymentSessionObj(applePaySessionObj.sessionsToken, ApplePay)
 
+  let samsungPaySessionObj = SessionsType.itemToObjMapper(dict, SamsungPayObject)
+  let samsungPayToken = SessionsType.getPaymentSessionObj(
+    samsungPaySessionObj.sessionsToken,
+    SamsungPay,
+  )
+
   let intent = PaymentHelpers.usePaymentIntent(Some(loggerState), Card)
   let savedCardlength = savedMethods->Array.length
   let paymentMethodListValue = Recoil.useRecoilValueFromAtom(PaymentUtils.paymentMethodListValue)
@@ -96,7 +101,6 @@ let make = (
           index=i
           savedCardlength
           cvcProps
-          paymentType
           setRequiredFieldsBody
         />
       )
@@ -128,13 +132,12 @@ let make = (
           setPaymentToken
           paymentTokenVal
           cvcProps
-          paymentType
         />
       }}
     </div>
   }
 
-  let (isCVCValid, _, cvcNumber, _, _, _, _, _, _, setCvcError) = cvcProps
+  let {isCVCValid, cvcNumber, setCvcError} = cvcProps
   let complete = switch isCVCValid {
   | Some(val) => paymentTokenVal !== "" && val
   | _ => false
@@ -164,6 +167,8 @@ let make = (
   GooglePayHelpers.useHandleGooglePayResponse(~connectors=[], ~intent, ~isSavedMethodsFlow=true)
 
   ApplePayHelpers.useHandleApplePayResponse(~connectors=[], ~intent, ~isSavedMethodsFlow=true)
+
+  SamsungPayHelpers.useHandleSamsungPayResponse(~intent, ~isSavedMethodsFlow=true)
 
   let submitCallback = React.useCallback((ev: Window.event) => {
     let json = ev.data->safeParse
@@ -264,6 +269,24 @@ let make = (
               ~sessionObj=optToken,
               ~componentName,
               ~paymentMethodListValue,
+            )
+          | _ =>
+            // TODO - To be replaced with proper error message
+            intent(
+              ~bodyArr=savedPaymentMethodBody->mergeAndFlattenToTuples(requiredFieldsBody),
+              ~confirmParam=confirm.confirmParams,
+              ~handleUserError=false,
+              ~manualRetry=isManualRetryEnabled,
+            )
+          }
+        | Some("samsung_pay") =>
+          switch samsungPayToken {
+          | SamsungPayTokenOptional(optToken) =>
+            SamsungPayHelpers.handleSamsungPayClicked(
+              ~componentName,
+              ~sessionObj=optToken->Option.getOr(JSON.Encode.null)->getDictFromJson,
+              ~iframeId,
+              ~readOnly,
             )
           | _ =>
             // TODO - To be replaced with proper error message

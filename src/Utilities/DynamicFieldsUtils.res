@@ -19,6 +19,8 @@ let dynamicFieldsEnabledPaymentMethods = [
   "mifinity",
   "upi_collect",
   "sepa",
+  "sepa_bank_transfer",
+  "instant_bank_transfer",
   "affirm",
   "walley",
   "ach",
@@ -184,7 +186,9 @@ let useRequiredFieldsEmptyAndValid = (
   let country = Recoil.useRecoilValueFromAtom(userCountry)
   let selectedBank = Recoil.useRecoilValueFromAtom(userBank)
   let currency = Recoil.useRecoilValueFromAtom(userCurrency)
-  let setAreRequiredFieldsValid = Recoil.useSetRecoilState(areRequiredFieldsValid)
+  let (areRequiredFieldsValid, setAreRequiredFieldsValid) = Recoil.useRecoilState(
+    areRequiredFieldsValid,
+  )
   let setAreRequiredFieldsEmpty = Recoil.useSetRecoilState(areRequiredFieldsEmpty)
   let {billingAddress} = Recoil.useRecoilValueFromAtom(optionAtom)
   let cryptoCurrencyNetworks = Recoil.useRecoilValueFromAtom(cryptoCurrencyNetworks)
@@ -322,6 +326,17 @@ let useRequiredFieldsEmptyAndValid = (
     bankAccountNumber,
     cryptoCurrencyNetworks,
   ))
+
+  React.useEffect(() => {
+    switch (isCardValid, isExpiryValid, isCVCValid) {
+    | (Some(cardValid), Some(expiryValid), Some(cvcValid)) =>
+      CardUtils.emitIsFormReadyForSubmission(
+        cardValid && expiryValid && cvcValid && areRequiredFieldsValid,
+      )
+    | _ => ()
+    }
+    None
+  }, (isCardValid, isExpiryValid, isCVCValid, areRequiredFieldsValid))
 }
 
 let useSetInitialRequiredFields = (

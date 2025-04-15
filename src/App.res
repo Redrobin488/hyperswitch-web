@@ -67,14 +67,18 @@ let make = () => {
       </div>
     | "qrData" => <QRCodeDisplay />
     | "3dsAuth" => <ThreeDSAuth />
+    | "redsys3ds" => <Redsys3ds />
     | "3ds" => <ThreeDSMethod />
     | "voucherData" => <VoucherDisplay />
     | "preMountLoader" => {
         let clientSecret = getQueryParamsDictforKey(url.search, "clientSecret")
         let sessionId = getQueryParamsDictforKey(url.search, "sessionId")
         let publishableKey = getQueryParamsDictforKey(url.search, "publishableKey")
+        let profileId = getQueryParamsDictforKey(url.search, "profileId")
         let endpoint = getQueryParamsDictforKey(url.search, "endpoint")
         let ephemeralKey = getQueryParamsDictforKey(url.search, "ephemeralKey")
+        let pmClientSecret = getQueryParamsDictforKey(url.search, "pmClientSecret")
+        let pmSessionId = getQueryParamsDictforKey(url.search, "pmSessionId")
         let hyperComponentName =
           getQueryParamsDictforKey(
             url.search,
@@ -85,10 +89,13 @@ let make = () => {
 
         <PreMountLoader
           publishableKey
+          profileId
           sessionId
           clientSecret
           endpoint
           ephemeralKey
+          pmSessionId
+          pmClientSecret
           hyperComponentName
           merchantHostname
           customPodUri

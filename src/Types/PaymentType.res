@@ -169,6 +169,12 @@ type sdkHandleConfirmPayment = {
   confirmParams: ConfirmType.confirmParams,
 }
 
+type sdkHandleSavePayment = {
+  handleSave: bool,
+  buttonText?: string,
+  confirmParams: ConfirmType.confirmParams,
+}
+
 type options = {
   defaultValues: defaultValues,
   layout: layoutType,
@@ -188,6 +194,7 @@ type options = {
   showCardFormByDefault: bool,
   billingAddress: billingAddress,
   sdkHandleConfirmPayment: sdkHandleConfirmPayment,
+  sdkHandleSavePayment: sdkHandleSavePayment,
   paymentMethodsHeaderText?: string,
   savedPaymentMethodsHeaderText?: string,
   hideExpiredPaymentMethods: bool,
@@ -195,7 +202,7 @@ type options = {
   hideCardNicknameField: bool,
   displayBillingDetails: bool,
   customMessageForCardTerms: string,
-  customSurchargeMessage: option<string>,
+  showShortSurchargeMessage: bool,
 }
 
 type payerDetails = {
@@ -337,6 +344,11 @@ let defaultSdkHandleConfirmPayment = {
   confirmParams: ConfirmType.defaultConfirm,
 }
 
+let defaultSdkHandleSavePayment = {
+  handleSave: false,
+  confirmParams: ConfirmType.defaultConfirm,
+}
+
 let defaultOptions = {
   defaultValues: defaultDefaultValues,
   business: defaultBusiness,
@@ -356,12 +368,13 @@ let defaultOptions = {
   showCardFormByDefault: true,
   billingAddress: defaultBillingAddress,
   sdkHandleConfirmPayment: defaultSdkHandleConfirmPayment,
+  sdkHandleSavePayment: defaultSdkHandleSavePayment,
   hideExpiredPaymentMethods: false,
   displayDefaultSavedPaymentIcon: true,
   hideCardNicknameField: false,
   displayBillingDetails: false,
   customMessageForCardTerms: "",
-  customSurchargeMessage: None,
+  showShortSurchargeMessage: false,
 }
 
 let getLayout = (str, logger) => {
@@ -1064,6 +1077,12 @@ let getSdkHandleConfirmPaymentProps = dict => {
   confirmParams: dict->getDictFromDict("confirmParams")->getConfirmParams,
 }
 
+let getSdkHandleSavePaymentProps = dict => {
+  handleSave: dict->getBool("handleSave", false),
+  buttonText: ?dict->getOptionString("buttonText"),
+  confirmParams: dict->getDictFromDict("confirmParams")->getConfirmParams,
+}
+
 let itemToObjMapper = (dict, logger) => {
   unknownKeysWarning(
     [
@@ -1082,6 +1101,7 @@ let itemToObjMapper = (dict, logger) => {
       "sdkHandleOneClickConfirmPayment",
       "showCardFormByDefault",
       "sdkHandleConfirmPayment",
+      "sdkHandleSavePayment",
       "paymentMethodsHeaderText",
       "savedPaymentMethodsHeaderText",
       "hideExpiredPaymentMethods",
@@ -1090,7 +1110,7 @@ let itemToObjMapper = (dict, logger) => {
       "hideCardNicknameField",
       "displayBillingDetails",
       "customMessageForCardTerms",
-      "customSurchargeMessage",
+      "showShortSurchargeMessage",
     ],
     dict,
     "options",
@@ -1130,6 +1150,9 @@ let itemToObjMapper = (dict, logger) => {
     sdkHandleConfirmPayment: dict
     ->getDictFromDict("sdkHandleConfirmPayment")
     ->getSdkHandleConfirmPaymentProps,
+    sdkHandleSavePayment: dict
+    ->getDictFromDict("sdkHandleSavePayment")
+    ->getSdkHandleSavePaymentProps,
     paymentMethodsHeaderText: ?getOptionString(dict, "paymentMethodsHeaderText"),
     savedPaymentMethodsHeaderText: ?getOptionString(dict, "savedPaymentMethodsHeaderText"),
     hideExpiredPaymentMethods: getBool(dict, "hideExpiredPaymentMethods", false),
@@ -1137,7 +1160,7 @@ let itemToObjMapper = (dict, logger) => {
     hideCardNicknameField: getBool(dict, "hideCardNicknameField", false),
     displayBillingDetails: getBool(dict, "displayBillingDetails", false),
     customMessageForCardTerms: getString(dict, "customMessageForCardTerms", ""),
-    customSurchargeMessage: getOptionString(dict, "customSurchargeMessage"),
+    showShortSurchargeMessage: getBool(dict, "showShortSurchargeMessage", false),
   }
 }
 

@@ -77,6 +77,22 @@ let getStringFromJson = (json, default) => {
   json->JSON.Decode.string->Option.getOr(default)
 }
 
+let convertDictToArrayOfKeyStringTuples = dict => {
+  dict
+  ->Dict.toArray
+  ->Array.map(entries => {
+    let (x, val) = entries
+    (x, val->JSON.Decode.string->Option.getOr(""))
+  })
+}
+
+let mergeHeadersIntoDict = (~dict, ~headers) => {
+  headers->Array.forEach(entries => {
+    let (x, val) = entries
+    Dict.set(dict, x, val->JSON.Encode.string)
+  })
+}
+
 let getInt = (dict, key, default: int) => {
   dict
   ->Dict.get(key)
@@ -694,7 +710,7 @@ let handlePostMessageEvents = (
   ~complete,
   ~empty,
   ~paymentType,
-  ~loggerState: HyperLogger.loggerMake,
+  ~loggerState: HyperLoggerTypes.loggerMake,
   ~savedMethod=false,
 ) => {
   if complete && paymentType !== "" {
@@ -1239,6 +1255,7 @@ let getThemePromise = dict => {
   | "midnight" => Some(ThemeImporter.importTheme("../MidnightTheme.bs.js"))
   | "charcoal" => Some(ThemeImporter.importTheme("../CharcoalTheme.bs.js"))
   | "soft" => Some(ThemeImporter.importTheme("../SoftTheme.bs.js"))
+  | "bubblegum" => Some(ThemeImporter.importTheme("../BubblegumTheme.bs.js"))
   | "none" => Some(ThemeImporter.importTheme("../NoTheme.bs.js"))
   | _ => None
   }
@@ -1326,7 +1343,7 @@ let walletElementPaymentType: array<CardThemeType.mode> = [
   ExpressCheckoutElement,
 ]
 
-let getIsWalletElementPaymentType = (paymentType: CardThemeType.mode) => {
+let checkIsWalletElement = (paymentType: CardThemeType.mode) => {
   walletElementPaymentType->Array.includes(paymentType)
 }
 
@@ -1490,4 +1507,47 @@ let replaceRootHref = (href: string, redirectionFlags: RecoilAtomTypes.redirecti
 let isValidHexColor = (color: string): bool => {
   let hexRegex = %re("/^#([0-9a-f]{6}|[0-9a-f]{3})$/i")
   Js.Re.test_(hexRegex, color)
+}
+
+let validateName = (
+  val: string,
+  prev: RecoilAtomTypes.field,
+  localeString: LocaleStringTypes.localeStrings,
+) => {
+  let isValid = val !== "" && %re("/^\D*$/")->RegExp.test(val)
+  let errorString = if val === "" {
+    prev.errorString
+  } else if isValid {
+    ""
+  } else {
+    localeString.invalidCardHolderNameError
+  }
+  {
+    ...prev,
+    value: val,
+    isValid: Some(isValid),
+    errorString,
+  }
+}
+
+let validateNickname = (val: string, localeString: LocaleStringTypes.localeStrings) => {
+  let isValid = Some(val === "" || !(val->isDigitLimitExceeded(~digit=2)))
+  let errorString =
+    val !== "" && val->isDigitLimitExceeded(~digit=2) ? localeString.invalidNickNameError : ""
+
+  (isValid, errorString)
+}
+
+let setNickNameState = (
+  val,
+  prevState: RecoilAtomTypes.field,
+  localeString: LocaleStringTypes.localeStrings,
+) => {
+  let (isValid, errorString) = val->validateNickname(localeString)
+  {
+    ...prevState,
+    value: val,
+    isValid,
+    errorString,
+  }
 }

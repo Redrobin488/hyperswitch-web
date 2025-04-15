@@ -3,18 +3,18 @@ type event = {target: target}
 
 @react.component
 let make = (
-  ~cardProps,
-  ~expiryProps,
-  ~cvcProps,
+  ~cardProps: CardUtils.cardProps,
+  ~expiryProps: CardUtils.expiryProps,
+  ~cvcProps: CardUtils.cvcProps,
   ~isBancontact=false,
-  ~paymentType: CardThemeType.mode,
 ) => {
   open PaymentType
   open PaymentModeType
   open Utils
   open UtilityHooks
   open Promise
-
+  open PaymentTypeContext
+  let {publishableKey} = Recoil.useRecoilValueFromAtom(RecoilAtoms.keys)
   let {config, themeObj, localeString} = Recoil.useRecoilValueFromAtom(RecoilAtoms.configAtom)
   let isManualRetryEnabled = Recoil.useRecoilValueFromAtom(RecoilAtoms.isManualRetryEnabled)
   let {innerLayout} = config.appearance
@@ -29,8 +29,15 @@ let make = (
   let (clickToPayRememberMe, setClickToPayRememberMe) = React.useState(_ => false)
 
   let nickname = Recoil.useRecoilValueFromAtom(RecoilAtoms.userCardNickName)
-
-  let (
+  let url = RescriptReactRouter.useUrl()
+  let componentName = CardUtils.getQueryParamsDictforKey(url.search, "componentName")
+  let paymentTypeFromUrl = componentName->CardThemeType.getPaymentMode
+  let isPMMFlow = switch paymentTypeFromUrl {
+  | PaymentMethodsManagement => true
+  | _ => false
+  }
+  let paymentType = usePaymentType()
+  let {
     isCardValid,
     setIsCardValid,
     isCardSupported,
@@ -43,35 +50,34 @@ let make = (
     setCardError,
     maxCardLength,
     cardBrand,
-  ) = cardProps
+  } = cardProps
 
-  let (
+  let {
     isExpiryValid,
     setIsExpiryValid,
     cardExpiry,
     changeCardExpiry,
     handleExpiryBlur,
     expiryRef,
-    _,
     expiryError,
     setExpiryError,
-  ) = expiryProps
+  } = expiryProps
 
-  let (
+  let {
     isCVCValid,
     setIsCVCValid,
     cvcNumber,
-    _,
     changeCVCNumber,
     handleCVCBlur,
     cvcRef,
-    _,
     cvcError,
     setCvcError,
-  ) = cvcProps
+  } = cvcProps
   let {displaySavedPaymentMethodsCheckbox} = Recoil.useRecoilValueFromAtom(RecoilAtoms.optionAtom)
   let intent = PaymentHelpers.usePaymentIntent(Some(loggerState), Card)
+  let saveCard = PaymentHelpersV2.useSaveCard(Some(loggerState), Card)
   let showFields = Recoil.useRecoilValueFromAtom(RecoilAtoms.showCardFieldsAtom)
+  let setShowFields = Recoil.useSetRecoilState(RecoilAtoms.showCardFieldsAtom)
   let setComplete = Recoil.useSetRecoilState(RecoilAtoms.fieldsComplete)
   let (isSaveCardsChecked, setIsSaveCardsChecked) = React.useState(_ => false)
 
@@ -125,6 +131,7 @@ let make = (
   let empty = cardNumber == "" || cardExpiry == "" || cvcNumber == ""
   React.useEffect(() => {
     setComplete(_ => complete)
+    setShowFields(_ => true)
     None
   }, [complete])
 
@@ -153,15 +160,27 @@ let make = (
     let cardNetwork = [
       ("card_network", cardBrand != "" ? cardBrand->JSON.Encode.string : JSON.Encode.null),
     ]
-    let defaultCardBody = PaymentBody.cardPaymentBody(
-      ~cardNumber,
-      ~month,
-      ~year,
-      ~cardHolderName=None,
-      ~cvcNumber,
-      ~cardBrand=cardNetwork,
-      ~nickname=nickname.value,
-    )
+    let defaultCardBody = if isPMMFlow {
+      PaymentManagementBody.saveCardBody(
+        ~cardNumber,
+        ~month,
+        ~year,
+        ~cardHolderName=None,
+        ~cvcNumber,
+        ~cardBrand=cardNetwork,
+        ~nickname=nickname.value,
+      )
+    } else {
+      PaymentBody.cardPaymentBody(
+        ~cardNumber,
+        ~month,
+        ~year,
+        ~cardHolderName=None,
+        ~cvcNumber,
+        ~cardBrand=cardNetwork,
+        ~nickname=nickname.value,
+      )
+    }
     let banContactBody = PaymentBody.bancontactBody()
     let cardBody = if isCustomerAcceptanceRequired {
       defaultCardBody->Array.concat(onSessionBody)
@@ -257,6 +276,15 @@ let make = (
             resolve()
           })
           ->ignore
+        } else if isPMMFlow {
+          saveCard(
+            ~bodyArr=cardBody->mergeAndFlattenToTuples(requiredFieldsBody),
+            ~confirmParam={
+              return_url: options.sdkHandleSavePayment.confirmParams.return_url,
+              publishableKey,
+            },
+            ~handleUserError=true,
+          )
         } else {
           intent(
             ~bodyArr={
@@ -347,9 +375,7 @@ let make = (
               onBlur=handleCardBlur
               rightIcon={icon}
               errorString=cardError
-              paymentType
               type_="tel"
-              appearance=config.appearance
               maxLength=maxCardLength
               inputRef=cardRef
               placeholder="1234 1234 1234 1234"
@@ -357,6 +383,7 @@ let make = (
                 ? "border-b-0"
                 : ""}
               name=TestUtils.cardNoInputTestId
+              autocomplete="cc-number"
             />
             <div
               className="flex flex-row w-full place-content-between"
@@ -372,13 +399,12 @@ let make = (
                   onChange=changeCardExpiry
                   onBlur=handleExpiryBlur
                   errorString=expiryError
-                  paymentType
                   type_="tel"
-                  appearance=config.appearance
                   maxLength=7
                   inputRef=expiryRef
                   placeholder=localeString.expiryPlaceholder
                   name=TestUtils.expiryInputTestId
+                  autocomplete="cc-exp"
                 />
               </div>
               <div className={innerLayout === Spaced ? "w-[47%]" : "w-[50%]"}>
@@ -390,20 +416,19 @@ let make = (
                   onChange=changeCVCNumber
                   onBlur=handleCVCBlur
                   errorString=cvcError
-                  paymentType
                   rightIcon={CardUtils.setRightIconForCvc(
                     ~cardComplete,
                     ~cardEmpty,
                     ~cardInvalid,
                     ~color=themeObj.colorIconCardCvcError,
                   )}
-                  appearance=config.appearance
                   type_="tel"
                   className={`tracking-widest w-full ${compressedLayoutStyleForCvcError}`}
                   maxLength=4
                   inputRef=cvcRef
                   placeholder="123"
                   name=TestUtils.cardCVVInputTestId
+                  autocomplete="cc-csc"
                 />
               </div>
             </div>
@@ -425,7 +450,6 @@ let make = (
             </RenderIf>
           </RenderIf>
           <DynamicFields
-            paymentType
             paymentMethod
             paymentMethodType
             setRequiredFieldsBody
@@ -442,8 +466,10 @@ let make = (
               />
             </div>
           </RenderIf>
-          <RenderIf condition={!options.hideCardNicknameField && isCustomerAcceptanceRequired}>
-            <NicknamePaymentInput paymentType />
+          <RenderIf
+            condition={(!options.hideCardNicknameField && isCustomerAcceptanceRequired) ||
+              paymentType == PaymentMethodsManagement}>
+            <NicknamePaymentInput />
           </RenderIf>
         </div>
       </div>

@@ -7,7 +7,13 @@ module RenderSavedPaymentMethodItem = {
         className="flex flex-col items-start"
         role="group"
         ariaLabel={`Card ${paymentItem.card.nickname}, ending in ${paymentItem.card.last4Digits}`}>
-        <div className="text-base tracking-wide"> {React.string(paymentItem.card.nickname)} </div>
+        <div className="text-base tracking-wide">
+          {React.string(
+            paymentItem.card.nickname->String.length > 15
+              ? paymentItem.card.nickname->String.slice(~start=0, ~end=13)->String.concat("..")
+              : paymentItem.card.nickname,
+          )}
+        </div>
         <div className={`PickerItemLabel flex flex-row gap-3 items-center text-sm`}>
           <div className="tracking-widest" ariaHidden=true> {React.string(`****`)} </div>
           <div className="tracking-wide" ariaHidden=true>
@@ -48,8 +54,7 @@ let make = (
   ~brandIcon,
   ~index,
   ~savedCardlength,
-  ~cvcProps,
-  ~paymentType,
+  ~cvcProps: CardUtils.cvcProps,
   ~setRequiredFieldsBody,
 ) => {
   let {themeObj, config, localeString} = Recoil.useRecoilValueFromAtom(RecoilAtoms.configAtom)
@@ -59,18 +64,7 @@ let make = (
     displayBillingDetails,
   } = Recoil.useRecoilValueFromAtom(RecoilAtoms.optionAtom)
   let (cardBrand, setCardBrand) = Recoil.useRecoilState(RecoilAtoms.cardBrand)
-  let (
-    isCVCValid,
-    setIsCVCValid,
-    cvcNumber,
-    _,
-    changeCVCNumber,
-    handleCVCBlur,
-    _,
-    _,
-    cvcError,
-    _,
-  ) = cvcProps
+  let {isCVCValid, setIsCVCValid, cvcNumber, changeCVCNumber, handleCVCBlur, cvcError} = cvcProps
   let cvcRef = React.useRef(Nullable.null)
   let pickerItemClass = isActive ? "PickerItem--selected" : ""
 
@@ -232,8 +226,6 @@ let make = (
                       onBlur=handleCVCBlur
                       errorString=""
                       inputFieldClassName="flex justify-start"
-                      paymentType
-                      appearance=config.appearance
                       type_="tel"
                       className={`tracking-widest justify-start w-full`}
                       maxLength=4
@@ -241,6 +233,7 @@ let make = (
                       placeholder="123"
                       height="1.8rem"
                       name={TestUtils.cardCVVInputTestId}
+                      autocomplete="cc-csc"
                     />
                   </div>
                 </div>
@@ -272,7 +265,6 @@ let make = (
               </RenderIf>
               <RenderIf condition={isActive}>
                 <DynamicFields
-                  paymentType
                   paymentMethod=paymentItem.paymentMethod
                   paymentMethodType
                   setRequiredFieldsBody

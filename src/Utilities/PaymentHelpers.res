@@ -27,7 +27,7 @@ let retrievePaymentIntent = (
   ~isForceSync=false,
 ) => {
   open Promise
-  let paymentIntentID = clientSecret->getPaymentId
+  let paymentIntentID = clientSecret->Utils.getPaymentId
   let endpoint = ApiEndpoint.getApiEndPoint()
   let forceSync = isForceSync ? "&force_sync=true" : ""
   let uri = `${endpoint}/payments/${paymentIntentID}?client_secret=${clientSecret}${forceSync}`
@@ -42,8 +42,8 @@ let retrievePaymentIntent = (
   )
   fetchApi(uri, ~method=#GET, ~headers=headers->ApiEndpoint.addCustomPodHeader(~customPodUri))
   ->then(res => {
-    let statusCode = res->Fetch.Response.status->Int.toString
-    if statusCode->String.charAt(0) !== "2" {
+    let statusCode = res->Fetch.Response.status
+    if !(res->Fetch.Response.ok) {
       res
       ->Fetch.Response.json
       ->then(data => {
@@ -103,8 +103,8 @@ let threeDsAuth = (~clientSecret, ~optLogger, ~threeDsMethodComp, ~headers) => {
   )
   fetchApi(url, ~method=#POST, ~bodyStr=body->JSON.stringify, ~headers=headers->Dict.fromArray)
   ->then(res => {
-    let statusCode = res->Fetch.Response.status->Int.toString
-    if statusCode->String.charAt(0) !== "2" {
+    let statusCode = res->Fetch.Response.status
+    if !(res->Fetch.Response.ok) {
       res
       ->Fetch.Response.json
       ->then(data => {
@@ -188,8 +188,8 @@ let retrieveStatus = (~headers, ~customPodUri, pollID, logger) => {
   )
   fetchApi(uri, ~method=#GET, ~headers=headers->ApiEndpoint.addCustomPodHeader(~customPodUri))
   ->then(res => {
-    let statusCode = res->Fetch.Response.status->Int.toString
-    if statusCode->String.charAt(0) !== "2" {
+    let statusCode = res->Fetch.Response.status
+    if !(res->Fetch.Response.ok) {
       res
       ->Fetch.Response.json
       ->then(data => {
@@ -306,7 +306,7 @@ let rec intentCall = (
 
   let isCompleteAuthorize = uri->String.includes("/complete_authorize")
   let isPostSessionTokens = uri->String.includes("/post_session_tokens")
-  let (eventName: HyperLogger.eventName, initEventName: HyperLogger.eventName) = switch (
+  let (eventName: HyperLoggerTypes.eventName, initEventName: HyperLoggerTypes.eventName) = switch (
     isConfirm,
     isCompleteAuthorize,
     isPostSessionTokens,
@@ -339,14 +339,14 @@ let rec intentCall = (
     ~bodyStr,
   )
   ->then(res => {
-    let statusCode = res->Fetch.Response.status->Int.toString
+    let statusCode = res->Fetch.Response.status
     let url = makeUrl(confirmParam.return_url)
     url.searchParams.set("payment_intent_client_secret", clientSecret)
     url.searchParams.set("status", "failed")
-    url.searchParams.set("payment_id", clientSecret->getPaymentId)
+    url.searchParams.set("payment_id", clientSecret->Utils.getPaymentId)
     messageParentWindow([("confirmParams", confirmParam->anyTypeToJson)])
 
-    if statusCode->String.charAt(0) !== "2" {
+    if !(res->Fetch.Response.ok) {
       res
       ->Fetch.Response.json
       ->then(data => {
@@ -431,7 +431,7 @@ let rec intentCall = (
                 resolve(failedSubmitResponse)
               }
             } else {
-              let paymentIntentID = clientSecret->getPaymentId
+              let paymentIntentID = clientSecret->Utils.getPaymentId
               let endpoint = ApiEndpoint.getApiEndPoint(
                 ~publishableKey=confirmParam.publishableKey,
                 ~isConfirmCall=isConfirm,
@@ -490,7 +490,7 @@ let rec intentCall = (
 
             let url = makeUrl(confirmParam.return_url)
             url.searchParams.set("payment_intent_client_secret", clientSecret)
-            url.searchParams.set("payment_id", clientSecret->getPaymentId)
+            url.searchParams.set("payment_id", clientSecret->Utils.getPaymentId)
             url.searchParams.set("status", intent.status)
 
             let handleProcessingStatus = (paymentType, sdkHandleOneClickConfirmPayment) => {
@@ -566,12 +566,7 @@ let rec intentCall = (
                 let borderColor = intent.nextAction.border_color->Option.getOr("")
                 let expiryTime = intent.nextAction.display_to_timestamp->Option.getOr(0.0)
                 let headerObj = Dict.make()
-                headers->Array.forEach(
-                  entries => {
-                    let (x, val) = entries
-                    Dict.set(headerObj, x, val->JSON.Encode.string)
-                  },
-                )
+                mergeHeadersIntoDict(~dict=headerObj, ~headers)
                 let metaData =
                   [
                     ("qrData", qrData->JSON.Encode.string),
@@ -615,12 +610,8 @@ let rec intentCall = (
                   ->getBoolValue
 
                 let headerObj = Dict.make()
-                headers->Array.forEach(
-                  entries => {
-                    let (x, val) = entries
-                    Dict.set(headerObj, x, val->JSON.Encode.string)
-                  },
-                )
+                mergeHeadersIntoDict(~dict=headerObj, ~headers)
+
                 let metaData =
                   [
                     ("threeDSData", threeDsData->JSON.Encode.object),
@@ -654,18 +645,38 @@ let rec intentCall = (
                     ("metadata", metaData->JSON.Encode.object),
                   ])
                 }
+              } else if intent.nextAction.type_ === "invoke_hidden_iframe" {
+                let iframeData =
+                  intent.nextAction.iframe_data
+                  ->Option.flatMap(JSON.Decode.object)
+                  ->Option.getOr(Dict.make())
+
+                let headerObj = Dict.make()
+                mergeHeadersIntoDict(~dict=headerObj, ~headers)
+                let metaData =
+                  [
+                    ("iframeData", iframeData->JSON.Encode.object),
+                    ("paymentIntentId", clientSecret->JSON.Encode.string),
+                    ("publishableKey", confirmParam.publishableKey->JSON.Encode.string),
+                    ("headers", headerObj->JSON.Encode.object),
+                    ("url", url.href->JSON.Encode.string),
+                    ("iframeId", iframeId->JSON.Encode.string),
+                    ("confirmParams", confirmParam->anyTypeToJson),
+                  ]->Dict.fromArray
+
+                messageParentWindow([
+                  ("fullscreen", true->JSON.Encode.bool),
+                  ("param", `redsys3ds`->JSON.Encode.string),
+                  ("iframeId", iframeId->JSON.Encode.string),
+                  ("metadata", metaData->JSON.Encode.object),
+                ])
               } else if intent.nextAction.type_ === "display_voucher_information" {
                 let voucherData = intent.nextAction.voucher_details->Option.getOr({
                   download_url: "",
                   reference: "",
                 })
                 let headerObj = Dict.make()
-                headers->Array.forEach(
-                  entries => {
-                    let (x, val) = entries
-                    Dict.set(headerObj, x, val->JSON.Encode.string)
-                  },
-                )
+                mergeHeadersIntoDict(~dict=headerObj, ~headers)
                 let metaData =
                   [
                     ("voucherUrl", voucherData.download_url->JSON.Encode.string),
@@ -838,7 +849,7 @@ let rec intentCall = (
       try {
         let url = makeUrl(confirmParam.return_url)
         url.searchParams.set("payment_intent_client_secret", clientSecret)
-        url.searchParams.set("payment_id", clientSecret->getPaymentId)
+        url.searchParams.set("payment_id", clientSecret->Utils.getPaymentId)
         url.searchParams.set("status", "failed")
         let exceptionMessage = err->formatException
         logApi(
@@ -866,7 +877,7 @@ let rec intentCall = (
             resolve(failedSubmitResponse)
           }
         } else {
-          let paymentIntentID = clientSecret->getPaymentId
+          let paymentIntentID = clientSecret->Utils.getPaymentId
           let endpoint = ApiEndpoint.getApiEndPoint(
             ~publishableKey=confirmParam.publishableKey,
             ~isConfirmCall=isConfirm,
@@ -916,7 +927,7 @@ let rec intentCall = (
   })
 }
 
-let usePaymentSync = (optLogger: option<HyperLogger.loggerMake>, paymentType: payment) => {
+let usePaymentSync = (optLogger: option<HyperLoggerTypes.loggerMake>, paymentType: payment) => {
   open RecoilAtoms
   let paymentMethodList = Recoil.useRecoilValueFromAtom(paymentMethodList)
   let keys = Recoil.useRecoilValueFromAtom(keys)
@@ -927,7 +938,7 @@ let usePaymentSync = (optLogger: option<HyperLogger.loggerMake>, paymentType: pa
   (~handleUserError=false, ~confirmParam: ConfirmType.confirmParams, ~iframeId="") => {
     switch keys.clientSecret {
     | Some(clientSecret) =>
-      let paymentIntentID = clientSecret->getPaymentId
+      let paymentIntentID = clientSecret->Utils.getPaymentId
       let headers = [("Content-Type", "application/json"), ("api-key", confirmParam.publishableKey)]
       let endpoint = ApiEndpoint.getApiEndPoint(~publishableKey=confirmParam.publishableKey)
       let uri = `${endpoint}/payments/${paymentIntentID}?force_sync=true&client_secret=${clientSecret}`
@@ -987,6 +998,123 @@ let rec maskPayload = payloadJson => {
   }
 }
 
+let useCompleteAuthorizeHandler = () => {
+  open RecoilAtoms
+
+  let customPodUri = Recoil.useRecoilValueFromAtom(customPodUri)
+  let setIsManualRetryEnabled = Recoil.useSetRecoilState(isManualRetryEnabled)
+  let isCallbackUsedVal = Recoil.useRecoilValueFromAtom(isCompleteCallbackUsed)
+  let redirectionFlags = Recoil.useRecoilValueFromAtom(redirectionFlagsAtom)
+
+  (
+    ~clientSecret: option<string>,
+    ~bodyArr,
+    ~confirmParam: ConfirmType.confirmParams,
+    ~iframeId,
+    ~optLogger,
+    ~handleUserError,
+    ~paymentType,
+    ~sdkHandleOneClickConfirmPayment,
+    ~headers: option<array<(string, string)>>=?,
+    ~paymentMode: option<string>=?,
+  ) =>
+    switch clientSecret {
+    | Some(cs) =>
+      let endpoint = ApiEndpoint.getApiEndPoint(~publishableKey=confirmParam.publishableKey)
+      let uri = `${endpoint}/payments/${cs->Utils.getPaymentId}/complete_authorize`
+
+      let finalHeaders = switch headers {
+      | Some(h) => h
+      | None => [
+          ("Content-Type", "application/json"),
+          ("api-key", confirmParam.publishableKey),
+          ("X-Client-Source", paymentMode->Option.getOr("")),
+        ]
+      }
+      let bodyStr =
+        [("client_secret", cs->JSON.Encode.string)]
+        ->Array.concatMany([bodyArr, BrowserSpec.broswerInfo()])
+        ->getJsonFromArrayOfJson
+        ->JSON.stringify
+
+      intentCall(
+        ~fetchApi,
+        ~uri,
+        ~headers=finalHeaders,
+        ~bodyStr,
+        ~confirmParam,
+        ~clientSecret=cs,
+        ~optLogger,
+        ~handleUserError,
+        ~paymentType,
+        ~iframeId,
+        ~fetchMethod=#POST,
+        ~setIsManualRetryEnabled,
+        ~customPodUri,
+        ~sdkHandleOneClickConfirmPayment,
+        ~counter=0,
+        ~isCallbackUsedVal,
+        ~redirectionFlags,
+      )->ignore
+    | None =>
+      postFailedSubmitResponse(
+        ~errortype="complete_authorize_failed",
+        ~message="Complete Authorize Failed. Try Again!",
+      )
+    }
+}
+
+let useCompleteAuthorize = (optLogger, paymentType) => {
+  let completeAuthorizeHandler = useCompleteAuthorizeHandler()
+  let keys = Recoil.useRecoilValueFromAtom(RecoilAtoms.keys)
+  let paymentMethodList = Recoil.useRecoilValueFromAtom(RecoilAtoms.paymentMethodList)
+  let url = RescriptReactRouter.useUrl()
+  let mode =
+    CardUtils.getQueryParamsDictforKey(url.search, "componentName")
+    ->CardThemeType.getPaymentMode
+    ->CardThemeType.getPaymentModeToStrMapper
+
+  (~handleUserError=false, ~bodyArr, ~confirmParam, ~iframeId=keys.iframeId) =>
+    switch paymentMethodList {
+    | Loaded(_) =>
+      completeAuthorizeHandler(
+        ~clientSecret=keys.clientSecret,
+        ~bodyArr,
+        ~confirmParam,
+        ~iframeId,
+        ~optLogger,
+        ~handleUserError,
+        ~paymentType,
+        ~sdkHandleOneClickConfirmPayment=keys.sdkHandleOneClickConfirmPayment,
+        ~paymentMode=mode,
+      )
+    | _ => ()
+    }
+}
+
+let useRedsysCompleteAuthorize = optLogger => {
+  let completeAuthorizeHandler = useCompleteAuthorizeHandler()
+  (
+    ~handleUserError=false,
+    ~bodyArr,
+    ~confirmParam,
+    ~iframeId="redsys3ds",
+    ~clientSecret,
+    ~headers,
+  ) =>
+    completeAuthorizeHandler(
+      ~clientSecret,
+      ~bodyArr,
+      ~confirmParam,
+      ~iframeId,
+      ~optLogger,
+      ~handleUserError,
+      ~paymentType=Card,
+      ~sdkHandleOneClickConfirmPayment=false,
+      ~headers,
+    )
+}
+
 let usePaymentIntent = (optLogger, paymentType) => {
   open RecoilAtoms
   open Promise
@@ -1012,7 +1140,7 @@ let usePaymentIntent = (optLogger, paymentType) => {
   ) => {
     switch keys.clientSecret {
     | Some(clientSecret) =>
-      let paymentIntentID = clientSecret->getPaymentId
+      let paymentIntentID = clientSecret->Utils.getPaymentId
       let headers = [
         ("Content-Type", "application/json"),
         ("api-key", confirmParam.publishableKey),
@@ -1073,7 +1201,7 @@ let usePaymentIntent = (optLogger, paymentType) => {
             ()
           })
         }
-        if blockConfirm && Window.isInteg {
+        if blockConfirm && GlobalVars.isInteg {
           Console.warn2("CONFIRM IS BLOCKED - Body", body)
           Console.warn2(
             "CONFIRM IS BLOCKED - Headers",
@@ -1177,75 +1305,6 @@ let usePaymentIntent = (optLogger, paymentType) => {
   }
 }
 
-let useCompleteAuthorize = (optLogger: option<HyperLogger.loggerMake>, paymentType: payment) => {
-  open RecoilAtoms
-  let paymentMethodList = Recoil.useRecoilValueFromAtom(paymentMethodList)
-  let keys = Recoil.useRecoilValueFromAtom(keys)
-  let customPodUri = Recoil.useRecoilValueFromAtom(customPodUri)
-  let setIsManualRetryEnabled = Recoil.useSetRecoilState(isManualRetryEnabled)
-  let url = RescriptReactRouter.useUrl()
-  let isCallbackUsedVal = Recoil.useRecoilValueFromAtom(RecoilAtoms.isCompleteCallbackUsed)
-  let redirectionFlags = Recoil.useRecoilValueFromAtom(redirectionFlagsAtom)
-  let paymentTypeFromUrl =
-    CardUtils.getQueryParamsDictforKey(url.search, "componentName")->CardThemeType.getPaymentMode
-  (
-    ~handleUserError=false,
-    ~bodyArr: array<(string, JSON.t)>,
-    ~confirmParam: ConfirmType.confirmParams,
-    ~iframeId=keys.iframeId,
-  ) => {
-    switch keys.clientSecret {
-    | Some(clientSecret) =>
-      let paymentIntentID = clientSecret->getPaymentId
-      let headers = [
-        ("Content-Type", "application/json"),
-        ("api-key", confirmParam.publishableKey),
-        ("X-Client-Source", paymentTypeFromUrl->CardThemeType.getPaymentModeToStrMapper),
-      ]
-      let endpoint = ApiEndpoint.getApiEndPoint(~publishableKey=confirmParam.publishableKey)
-      let uri = `${endpoint}/payments/${paymentIntentID}/complete_authorize`
-
-      let browserInfo = BrowserSpec.broswerInfo
-      let bodyStr =
-        [("client_secret", clientSecret->JSON.Encode.string)]
-        ->Array.concatMany([bodyArr, browserInfo()])
-        ->getJsonFromArrayOfJson
-        ->JSON.stringify
-
-      let completeAuthorize = () => {
-        intentCall(
-          ~fetchApi,
-          ~uri,
-          ~headers,
-          ~bodyStr,
-          ~confirmParam: ConfirmType.confirmParams,
-          ~clientSecret,
-          ~optLogger,
-          ~handleUserError,
-          ~paymentType,
-          ~iframeId,
-          ~fetchMethod=#POST,
-          ~setIsManualRetryEnabled,
-          ~customPodUri,
-          ~sdkHandleOneClickConfirmPayment=keys.sdkHandleOneClickConfirmPayment,
-          ~counter=0,
-          ~isCallbackUsedVal,
-          ~redirectionFlags,
-        )->ignore
-      }
-      switch paymentMethodList {
-      | Loaded(_) => completeAuthorize()
-      | _ => ()
-      }
-    | None =>
-      postFailedSubmitResponse(
-        ~errortype="complete_authorize_failed",
-        ~message="Complete Authorize Failed. Try Again!",
-      )
-    }
-  }
-}
-
 let fetchSessions = (
   ~clientSecret,
   ~publishableKey,
@@ -1263,7 +1322,7 @@ let fetchSessions = (
     ("api-key", publishableKey),
     ("X-Merchant-Domain", merchantHostname),
   ]
-  let paymentIntentID = clientSecret->getPaymentId
+  let paymentIntentID = clientSecret->Utils.getPaymentId
   let body =
     [
       ("payment_id", paymentIntentID->JSON.Encode.string),
@@ -1288,8 +1347,8 @@ let fetchSessions = (
     ~headers=headers->ApiEndpoint.addCustomPodHeader(~customPodUri),
   )
   ->then(resp => {
-    let statusCode = resp->Fetch.Response.status->Int.toString
-    if statusCode->String.charAt(0) !== "2" {
+    let statusCode = resp->Fetch.Response.status
+    if !(resp->Fetch.Response.ok) {
       resp
       ->Fetch.Response.json
       ->then(data => {
@@ -1359,12 +1418,12 @@ let confirmPayout = (~clientSecret, ~publishableKey, ~logger, ~customPodUri, ~ur
     ~headers=headers->ApiEndpoint.addCustomPodHeader(~customPodUri),
   )
   ->then(resp => {
-    let statusCode = resp->Fetch.Response.status->Int.toString
+    let statusCode = resp->Fetch.Response.status
 
     resp
     ->Fetch.Response.json
     ->then(data => {
-      if statusCode->String.charAt(0) !== "2" {
+      if !(resp->Fetch.Response.ok) {
         logApi(
           ~optLogger=Some(logger),
           ~url=uri,
@@ -1435,8 +1494,8 @@ let createPaymentMethod = (
     ~headers=headers->ApiEndpoint.addCustomPodHeader(~customPodUri),
   )
   ->then(resp => {
-    let statusCode = resp->Fetch.Response.status->Int.toString
-    if statusCode->String.charAt(0) !== "2" {
+    let statusCode = resp->Fetch.Response.status
+    if !(resp->Fetch.Response.ok) {
       resp
       ->Fetch.Response.json
       ->then(data => {
@@ -1500,8 +1559,8 @@ let fetchPaymentMethodList = (
   )
   fetchApi(uri, ~method=#GET, ~headers=headers->ApiEndpoint.addCustomPodHeader(~customPodUri))
   ->then(resp => {
-    let statusCode = resp->Fetch.Response.status->Int.toString
-    if statusCode->String.charAt(0) !== "2" {
+    let statusCode = resp->Fetch.Response.status
+    if !(resp->Fetch.Response.ok) {
       resp
       ->Fetch.Response.json
       ->then(data => {
@@ -1567,8 +1626,8 @@ let fetchCustomerPaymentMethodList = (
   )
   fetchApi(uri, ~method=#GET, ~headers=headers->ApiEndpoint.addCustomPodHeader(~customPodUri))
   ->then(res => {
-    let statusCode = res->Fetch.Response.status->Int.toString
-    if statusCode->String.charAt(0) !== "2" {
+    let statusCode = res->Fetch.Response.status
+    if !(res->Fetch.Response.ok) {
       res
       ->Fetch.Response.json
       ->then(data => {
@@ -1711,7 +1770,7 @@ let callAuthLink = (
     ~method=#POST,
     ~bodyStr=[
       ("client_secret", clientSecret->Option.getOr("")->JSON.Encode.string),
-      ("payment_id", clientSecret->Option.getOr("")->getPaymentId->JSON.Encode.string),
+      ("payment_id", clientSecret->Option.getOr("")->Utils.getPaymentId->JSON.Encode.string),
       ("payment_method", "bank_debit"->JSON.Encode.string),
       ("payment_method_type", paymentMethodType->JSON.Encode.string),
     ]
@@ -1720,8 +1779,8 @@ let callAuthLink = (
     ~headers,
   )
   ->then(res => {
-    let statusCode = res->Fetch.Response.status->Int.toString
-    if statusCode->String.charAt(0) !== "2" {
+    let statusCode = res->Fetch.Response.status
+    if !(res->Fetch.Response.ok) {
       res
       ->Fetch.Response.json
       ->then(data => {
@@ -1799,7 +1858,7 @@ let callAuthExchange = (
   let uri = `${endpoint}/payment_methods/auth/exchange`
   let updatedBody = [
     ("client_secret", clientSecret->Option.getOr("")->JSON.Encode.string),
-    ("payment_id", clientSecret->Option.getOr("")->getPaymentId->JSON.Encode.string),
+    ("payment_id", clientSecret->Option.getOr("")->Utils.getPaymentId->JSON.Encode.string),
     ("payment_method", "bank_debit"->JSON.Encode.string),
     ("payment_method_type", paymentMethodType->JSON.Encode.string),
     ("public_token", publicToken->JSON.Encode.string),
@@ -1823,8 +1882,8 @@ let callAuthExchange = (
     ~headers,
   )
   ->then(res => {
-    let statusCode = res->Fetch.Response.status->Int.toString
-    if statusCode->String.charAt(0) !== "2" {
+    let statusCode = res->Fetch.Response.status
+    if !(res->Fetch.Response.ok) {
       res
       ->Fetch.Response.json
       ->then(data => {
@@ -1915,8 +1974,8 @@ let fetchSavedPaymentMethodList = (
   )
   fetchApi(uri, ~method=#GET, ~headers=headers->ApiEndpoint.addCustomPodHeader(~customPodUri))
   ->then(res => {
-    let statusCode = res->Fetch.Response.status->Int.toString
-    if statusCode->String.charAt(0) !== "2" {
+    let statusCode = res->Fetch.Response.status
+    if !(res->Fetch.Response.ok) {
       res
       ->Fetch.Response.json
       ->then(data => {
@@ -1978,8 +2037,8 @@ let deletePaymentMethod = (~ephemeralKey, ~paymentMethodId, ~logger, ~customPodU
   )
   fetchApi(uri, ~method=#DELETE, ~headers=headers->ApiEndpoint.addCustomPodHeader(~customPodUri))
   ->then(resp => {
-    let statusCode = resp->Fetch.Response.status->Int.toString
-    if statusCode->String.charAt(0) !== "2" {
+    let statusCode = resp->Fetch.Response.status
+    if !(resp->Fetch.Response.ok) {
       resp
       ->Fetch.Response.json
       ->then(data => {
@@ -2059,8 +2118,8 @@ let calculateTax = (
     ~bodyStr=body->getJsonFromArrayOfJson->JSON.stringify,
   )
   ->then(resp => {
-    let statusCode = resp->Fetch.Response.status->Int.toString
-    if statusCode->String.charAt(0) !== "2" {
+    let statusCode = resp->Fetch.Response.status
+    if !(resp->Fetch.Response.ok) {
       resp
       ->Fetch.Response.json
       ->then(data => {
@@ -2131,7 +2190,7 @@ let usePostSessionTokens = (
   ) => {
     switch keys.clientSecret {
     | Some(clientSecret) =>
-      let paymentIntentID = clientSecret->getPaymentId
+      let paymentIntentID = clientSecret->Utils.getPaymentId
       let headers = [
         ("Content-Type", "application/json"),
         ("api-key", confirmParam.publishableKey),
